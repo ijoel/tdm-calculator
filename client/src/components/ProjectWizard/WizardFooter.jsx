@@ -5,7 +5,6 @@ import { createUseStyles } from "react-jss";
 import Button from "../Button/Button";
 import { useReactToPrint } from "react-to-print";
 import { PdfPrint } from "../PdfPrint/PdfPrint";
-import NumberedLink from "./NumberedLink";
 import { formatDatetime } from "../../helpers/util";
 import UserContext from "../../contexts/UserContext";
 import Popup from "reactjs-popup";
@@ -49,8 +48,8 @@ const useStyles = createUseStyles({
     alignItems: "center"
   },
   numberedNavButton: {
-    margin: "0.2em",
-    padding: "0.1em 0.3em",
+    padding: "0.35em 0.7em",
+    margin: "0.5em",
     minHeight: "min-content",
     fontSize: "1.5rem"
   }
@@ -85,8 +84,6 @@ const WizardFooter = ({
   const projectName = projectNameRule
     ? projectNameRule.value
     : "TDM Calculation Summary";
-  const projectLevelRule = rules && rules.find(r => r.code === "PROJECT_LEVEL");
-  const projectLevel = projectLevelRule ? projectLevelRule.value : 0;
   const formattedDateSnapshotted = formatDatetime(project.dateSnapshotted);
   const formattedDateSubmitted = formatDatetime(project.dateSubmitted);
   const formattedDateModified = formatDatetime(project.dateModified);
@@ -114,9 +111,6 @@ const WizardFooter = ({
     pageStyle: ".printContainer {overflow: hidden;}"
   });
 
-  // If the project exists and has been saved, AND a user is currently logged in
-  const showNumberedLinks = !!project?.id && !!loggedInUserId;
-
   return (
     <>
       <div id="all-buttons-wrapper" className={classes.allButtonsWrapper}>
@@ -143,44 +137,42 @@ const WizardFooter = ({
                   }}
                 />
 
-                {showNumberedLinks &&
-                  Array.from({ length: 5 }, (_, i) => i + 1).map(p => (
-                    <NumberedLink
+                {page > 1 &&
+                  !project.dateSnapshotted &&
+                  (!shareView || isAdmin) &&
+                  Array.from({ length: page - 1 }, (_, i) => i + 1).map(p => (
+                    <Button
                       key={`nav-page-${p}`}
                       id={`nav-page-${p}`}
+                      variant="secondary"
                       className={classes.numberedNavButton}
                       onClick={() => onPageChange(p)}
-                      isActive={p === Number(page)}
                       disabled={
-                        (shareView && !isAdmin) ||
-                        (p === 4 && projectLevel === 0) ||
-                        (!project.dateSnapshotted &&
-                          p > Number(page) &&
-                          setDisabledForNextNavButton())
+                        (shareView && !isAdmin) || !!project.dateSnapshotted
                       }
                       ariaLabel={`go to page ${p}`}
                     >
                       {p}
-                    </NumberedLink>
+                    </Button>
                   ))}
-
-                {(!shareView || isAdmin) && !project?.id ? (
-                  <div className={classes.pageNumberCounter}>
-                    Page {Number.isNaN(pageNumber) ? 1 : pageNumber}/5
-                  </div>
-                ) : null}
-                {/* Page {pageNumber}/5 */}
-                <NavButton
-                  id="rightNavArrow"
-                  navDirection="next"
-                  color="colorPrimary"
-                  isVisible={page !== 5}
-                  isDisabled={setDisabledForNextNavButton()}
-                  onClick={() => {
-                    onPageChange(Number(page) + 1);
-                  }}
-                />
               </div>
+
+              {(!shareView || isAdmin) && !project.dateSnapshotted ? (
+                <div className={classes.pageNumberCounter}>
+                  Page {pageNumber}/5
+                </div>
+              ) : null}
+              {/* Page {pageNumber}/5 */}
+              <NavButton
+                id="rightNavArrow"
+                navDirection="next"
+                color="colorPrimary"
+                isVisible={page !== 5}
+                isDisabled={setDisabledForNextNavButton()}
+                onClick={() => {
+                  onPageChange(Number(page) + 1);
+                }}
+              />
             </div>
             {isFinalPage && (
               <div>
@@ -262,9 +254,9 @@ const WizardFooter = ({
             <strong>Status: </strong>
             {!formattedDateSnapshotted
               ? "Draft"
-              : project.shareCount
-                ? "Shared Snapshot"
-                : "Snapshot"}
+              : project.loginId === loggedInUserId
+                ? "Snapshot"
+                : "Shared Snapshot"}
           </div>
           {formattedDateSubmitted ? (
             <div>
